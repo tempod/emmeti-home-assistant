@@ -1,0 +1,12 @@
+{
+  "domain": "emmeti_aqiot",
+  "name": "Emmeti AQ-IoT",
+  "config_flow": true,
+  "documentation": "https://github.com/your_username/ha-emmeti-aqiot",
+  "issue_tracker": "https://github.com/your_username/ha-emmeti-aqiot/issues",
+  "codeowners": ["@your_username"],
+  "requirements": [],
+  "version": "15.0.0",
+  "iot_class": "cloud_polling",
+  "loggers": ["custom_components.emmeti_aqiot"]
+}
