@@ -1,6 +1,8 @@
 """Client API per Emmeti AQ-IoT."""
 import asyncio
 import logging
+import json
+import os
 from typing import Any
 from datetime import datetime, timezone
 
@@ -62,12 +64,16 @@ class EmmetiApiClient:
                     return groups
                 raise EmmetiApiClientError("Discovery returned empty/invalid list")
         except Exception as e:
-            _LOGGER.warning("La scoperta dinamica dei gruppi è fallita (%s). Verrà utilizzata la lista di fallback.", e)
-            return [
-                "FB-AMB-DT@D13577@T44164", "FB-EP-SUMM@D13577@T44166", "FB-EP-SUPP@D13577@T44166",
-                "FB-HP-DT1@D13577@T44167", "FB-HP-SUPP@D13577@T44167", "FB-HW-DT@D13577@T44165",
-                "FB-HW-SUMM@D13577@T44165", "FB-AMB-SUMM@D13577@T44164",
-            ]
+            _LOGGER.warning("La scoperta dinamica dei gruppi è fallita (%s). Verrà utilizzata la lista di fallback da groups.json.", e)
+            try:
+                path = os.path.join(os.path.dirname(__file__), "groups.json")
+                with open(path, "r") as f:
+                    fallback_groups = json.load(f)
+                _LOGGER.info("Utilizzo %d gruppi di fallback da groups.json", len(fallback_groups))
+                return fallback_groups
+            except Exception as file_error:
+                _LOGGER.error("Impossibile leggere il file di fallback groups.json: %s", file_error)
+                return []
 
     async def async_get_realtime_data(self, installation_id: str, groups: list[str]) -> list[dict[str, Any]]:
         if not self._token:

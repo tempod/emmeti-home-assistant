@@ -4,10 +4,9 @@
   "config_flow": true,
   "documentation": "https://github.com/tempod/emmeti_aqiot",
   "issue_tracker": "https://github.com/tempod/emmeti_aqiot/issues",
-  "codeowners": ["@tempod"],
+  "codeowners": ["@yotempod"],
   "requirements": [],
   "version": "1.0.0",
   "iot_class": "cloud_polling",
   "loggers": ["custom_components.emmeti_aqiot"]
-
 }
