@@ -1,5 +1,8 @@
 {
     "name": "EmmeTI AQ-IoT",
     "homeassistant": "2025.2.4",
+    "content_in_root": false,
+    "render_readme": true,
+    "country": ["IT"],
     "hacs": "2.0.1"
 }
