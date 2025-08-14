@@ -12,6 +12,7 @@ L'integrazione importa i dati dalla webapp emmeti e crea sensori, switch, timer,
     - l'integrazione esegue una scansione automatica per trovare tutti i gruppo presenti nella web app. se questa scansione non dovesse          andare a buon fine utilizza una lista di gruppi pre-inseriti. questi gruppi sono presenti nel file groups.json e presentano questa         nomenclatura ""FB-AMB-DT@D13577@T44164W"". Se non corrispondo con la vostra installazione dovrete trovare i vostri e modificarli a         mano.
 - Impostazione automatica dei registri
   - i registri trovati vengono impostati automaticamente con il sensore corretto su home assistant. Questo riguarda la MIA installazione.      Non ho avuto modo di fare test su altre instllazioni.
+- l'aggiornamento dei valori richiede un po di tempo. può arrivare anche al doppio del valore di polling impostato
 # Installazione
 Tramite HACS
 - aggiungere il mio repository su hacs
