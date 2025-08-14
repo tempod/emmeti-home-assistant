@@ -13,6 +13,7 @@ L'integrazione importa i dati dalla webapp emmeti e crea sensori, switch, timer,
 - Impostazione automatica dei registri
   - i registri trovati vengono impostati automaticamente con il sensore corretto su home assistant. Questo riguarda la MIA installazione.      Non ho avuto modo di fare test su altre instllazioni.
 - l'aggiornamento dei valori richiede un po di tempo. può arrivare anche al doppio del valore di polling impostato
+- NON TUTTI I REGISTRI SONO MAPPATI. Sono riuscito a identificare solo i registri della MIA installazione. Credo che i registri siano uguali per tutte le installazioni ma potrebbero cambiare i gruppi. Aprite un "ISSUE" e vedrò di aggiungerli appena posso.
 # Installazione
 Tramite HACS
 - aggiungere il mio repository su hacs
@@ -22,3 +23,5 @@ Tramite HACS
 - installare e inserire le credenziali
 
 Se tutto va a buon fine dovreste trovare tutte le entità che sono presenti sulla web app. Se questo non accade provate a cercare i vostri gruppi analizzando la web app con la funzione F12 di chrome e sostituendole con quelle presenti nel file api.py come spiegato precedentemente
+# AIUTO
+Aiutiamo a vicenda per migliorare l'integrazione con suggerimenti, pull request e fork perche l'app di emmeti fa veramente PENA!
