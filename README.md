@@ -16,7 +16,7 @@ L'integrazione importa i dati dalla webapp emmeti e crea sensori, switch, timer,
 - NON TUTTI I REGISTRI SONO MAPPATI. Sono riuscito a identificare solo i registri della MIA installazione. Credo che i registri siano uguali per tutte le installazioni ma potrebbero cambiare i gruppi. Aprite un "ISSUE" e vedrò di aggiungerli appena posso.
 # Installazione
 Tramite HACS
-- aggiungere il mio repository su hacs
+- aggiungere il mio repository su hacs, tipo integrazione
 - cercare emmeti-aqiot
 - installare e riavviare home assistant
 - andare su impostazioni --> dispositivi e servizi --> aggiungi integrazione --> cercare "emmeti aq-iot"
