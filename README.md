@@ -28,6 +28,7 @@ Tramite HACS
 - installare e inserire le credenziali
 
 Se tutto va a buon fine dovreste trovare tutte le entità che sono presenti sulla web app. Se questo non accade provate a cercare i vostri gruppi analizzando la web app con la funzione F12 di chrome e sostituendole con quelle presenti nel file groups.json come spiegato precedentemente.
+
 ![gruppi](https://github.com/tempod/emmeti-home-assistant/blob/main/gruppi.png)
 
 # AIUTO
