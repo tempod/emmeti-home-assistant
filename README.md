@@ -2,6 +2,8 @@
 Integrazione Febos Emmeti Su Home Assistant
 
 L'integrazione importa i dati dalla webapp emmeti e crea sensori, switch, timer, sensori binari, ecc con le entità trovate e ne permette la modifica tramite l'interfaccia di Home Assistant.
+![plancia](https://github.com/tempod/emmeti-home-assistant/blob/main/plancia.png)
+
 
 # Funazioni principali
 - Dati di accesso alla web app emmeti impostabili tramite interfaccia
