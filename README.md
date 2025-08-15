@@ -22,6 +22,6 @@ Tramite HACS
 - andare su impostazioni --> dispositivi e servizi --> aggiungi integrazione --> cercare "emmeti aq-iot"
 - installare e inserire le credenziali
 
-Se tutto va a buon fine dovreste trovare tutte le entità che sono presenti sulla web app. Se questo non accade provate a cercare i vostri gruppi analizzando la web app con la funzione F12 di chrome e sostituendole con quelle presenti nel file api.py come spiegato precedentemente
+Se tutto va a buon fine dovreste trovare tutte le entità che sono presenti sulla web app. Se questo non accade provate a cercare i vostri gruppi analizzando la web app con la funzione F12 di chrome e sostituendole con quelle presenti nel file groups.json come spiegato precedentemente (vedi immaggine gruppi.png per un chiarimento)
 # AIUTO
 Aiutiamoci a vicenda per migliorare l'integrazione con suggerimenti, pull request e fork perche l'app di emmeti fa veramente PENA!
