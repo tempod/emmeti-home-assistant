@@ -36,7 +36,6 @@ SPECIAL_ENTITIES = {
     "R16493": "time",
     "R16495": "time",
     "R9073": "binary_sensor",
-    "R8672": "binary_sensor",
     "R8683": "switch",
 }
 
@@ -204,10 +203,6 @@ SENSOR_CONFIG_MAP = {
         "name": "Eco Hot Water",
         "transformation": lambda x: x == 1,
     },
-    "R8672": {
-        "name": "Finestra",
-        "transformation": lambda x: x == 1,
-    },
     # Sensori Sola Lettura
     "R8680": {
         "name": "Punto di Rugiada",
@@ -325,6 +320,11 @@ SENSOR_CONFIG_MAP = {
         "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "R9008": {
+        "name": "Potenza Compressore",
+        "transformation": lambda x: x,
         "state_class": SensorStateClass.MEASUREMENT,
     },
 }
