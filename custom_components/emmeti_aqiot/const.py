@@ -1,21 +1,108 @@
 """Costanti per l'integrazione Emmeti AQ-IoT."""
+from __future__ import annotations
+
 from datetime import time
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorStateClass,
-)
-from homeassistant.const import UnitOfTemperature, PERCENTAGE, UnitOfPower
+from typing import Any
+
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import PERCENTAGE, Platform, UnitOfPower, UnitOfTemperature
 
 DOMAIN = "emmeti_aqiot"
-PLATFORMS = ["sensor", "number", "time", "switch", "binary_sensor"]
+
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.NUMBER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.TIME,
+]
 
 # Chiavi per i dati salvati nella config entry
 CONF_INSTALLATION_ID = "installation_id"
 CONF_GROUPS = "groups"
 CONF_POLLING_INTERVAL = "polling_interval"
 DEFAULT_POLLING_INTERVAL = 30
+MIN_POLLING_INTERVAL = 10
+MAX_POLLING_INTERVAL = 300
 
-# Mappa delle entità con una piattaforma specifica (diversa da 'sensor')
+# Cicli del coordinator da attendere prima di scartare un valore impostato in
+# modo ottimistico e mai confermato dal server.
+PENDING_MAX_UPDATES = 6
+
+
+# --------------------------------------------------------------------------
+# Helper per le trasformazioni
+# --------------------------------------------------------------------------
+def scaled(factor: float) -> dict[str, Any]:
+    """Lettura e scrittura per un registro con un dato fattore di scala.
+
+    Definire le due direzioni in un unico punto impedisce che divisore e
+    moltiplicatore divergano, com'era per i setpoint di temperatura.
+    Il round() prima di int() e' necessario: int(21.3 * 10) darebbe 212.
+    """
+    if factor == 1:
+        # Nessuna divisione: raw / 1 restituirebbe un float e lo stato delle
+        # entita' esistenti passerebbe da "45" a "45.0".
+        return {
+            "transformation": lambda raw: raw,
+            "reverse_transformation": lambda value: int(round(value)),
+        }
+    return {
+        "transformation": lambda raw, f=factor: raw / f,
+        "reverse_transformation": lambda value, f=factor: int(round(value * f)),
+    }
+
+
+def _minutes_to_time(raw: int) -> time | None:
+    """Converte i minuti dalla mezzanotte in un oggetto time.
+
+    Ritorna None fuori range: senza questo controllo time() solleverebbe
+    ValueError dentro una property e l'entita' andrebbe in errore.
+    """
+    if raw is None or not 0 <= raw < 1440:
+        return None
+    return time(hour=raw // 60, minute=raw % 60)
+
+
+def _time_to_minutes(value: time) -> int:
+    return value.hour * 60 + value.minute
+
+
+TIME_TRANSFORM: dict[str, Any] = {
+    "transformation": _minutes_to_time,
+    "reverse_transformation": _time_to_minutes,
+}
+
+BOOL_TRANSFORM: dict[str, Any] = {
+    "transformation": lambda raw: raw == 1,
+    "reverse_transformation": lambda state: 1 if state else 0,
+}
+
+
+# --------------------------------------------------------------------------
+# Nomi leggibili dei dispositivi
+# --------------------------------------------------------------------------
+GROUP_NAME_MAP = {
+    "FB-AMB": "Ambiente",
+    "FB-HP": "Pompa di Calore",
+    "FB-HW": "Acqua Calda Sanitaria",
+    "FB-EP": "Energia",
+}
+
+
+def friendly_group_name(group_code: str) -> str:
+    """Ricava un nome leggibile dal groupCode (es. FB-AMB-DT@D13577@T44164)."""
+    base = group_code.split("@")[0]
+    for prefix, label in GROUP_NAME_MAP.items():
+        if base.startswith(prefix):
+            suffix = base[len(prefix) :].strip("-")
+            return f"Emmeti {label} {suffix}".strip() if suffix else f"Emmeti {label}"
+    return f"Emmeti {base}"
+
+
+# --------------------------------------------------------------------------
+# Mappa delle entita' con una piattaforma specifica (diversa da 'sensor')
+# --------------------------------------------------------------------------
 SPECIAL_ENTITIES = {
     "R8684": "number",
     "R8685": "time",
@@ -39,13 +126,20 @@ SPECIAL_ENTITIES = {
     "R8683": "switch",
 }
 
+# --------------------------------------------------------------------------
 # Mappa per la trasformazione dei dati e la configurazione dei sensori
-SENSOR_CONFIG_MAP = {
+# --------------------------------------------------------------------------
+SENSOR_CONFIG_MAP: dict[str, dict[str, Any]] = {
     # Temperature Riscaldamento
+    #
+    # NOTA SCALA: questi quattro setpoint usano fattore 100 (centesimi di
+    # grado). Prima lettura e scrittura erano disallineate (/100 in lettura,
+    # *10 in scrittura). Se sulla UI i valori risultano dieci volte piu'
+    # piccoli del reale, il fattore giusto e' 10: basta sostituire
+    # scaled(100) con scaled(10) e le due direzioni restano coerenti.
     "R8690": {
+        **scaled(100),
         "name": "Attenuazione Riscaldamento",
-        "transformation": lambda x: x / 100.0,
-        "reverse_transformation": lambda x: int(x * 10),
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -54,9 +148,8 @@ SENSOR_CONFIG_MAP = {
         "step": 0.1,
     },
     "R8688": {
+        **scaled(100),
         "name": "Confort Riscaldamento",
-        "transformation": lambda x: x / 100.0,
-        "reverse_transformation": lambda x: int(x * 10),
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -66,9 +159,8 @@ SENSOR_CONFIG_MAP = {
     },
     # Temperature Raffrescamento
     "R8686": {
+        **scaled(100),
         "name": "Attenuazione Raffrescamento",
-        "transformation": lambda x: x / 100.0,
-        "reverse_transformation": lambda x: int(x * 10),
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -77,9 +169,8 @@ SENSOR_CONFIG_MAP = {
         "step": 0.1,
     },
     "R8684": {
+        **scaled(100),
         "name": "Confort Raffrescamento",
-        "transformation": lambda x: x / 100.0,
-        "reverse_transformation": lambda x: int(x * 10),
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -89,9 +180,8 @@ SENSOR_CONFIG_MAP = {
     },
     # Temperature ACS
     "R16497": {
+        **scaled(10),
         "name": "Temp Mantenimento ACS",
-        "transformation": lambda x: x / 10.0,
-        "reverse_transformation": lambda x: int(x * 10),
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -100,9 +190,8 @@ SENSOR_CONFIG_MAP = {
         "step": 0.1,
     },
     "R16494": {
+        **scaled(10),
         "name": "Temp Richiesta 1 ACS",
-        "transformation": lambda x: x / 10.0,
-        "reverse_transformation": lambda x: int(x * 10),
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -111,9 +200,8 @@ SENSOR_CONFIG_MAP = {
         "step": 0.1,
     },
     "R16496": {
+        **scaled(10),
         "name": "Temp Richiesta 2 ACS",
-        "transformation": lambda x: x / 10.0,
-        "reverse_transformation": lambda x: int(x * 10),
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -121,11 +209,10 @@ SENSOR_CONFIG_MAP = {
         "max_value": 70.0,
         "step": 0.1,
     },
-    # Umidità
+    # Umidita'
     "R8660": {
-        "name": "Setpoint Umidità Raffrescamento",
-        "transformation": lambda x: x,
-        "reverse_transformation": lambda x: int(x),
+        **scaled(1),
+        "name": "Setpoint Umidita Raffrescamento",
         "device_class": SensorDeviceClass.HUMIDITY,
         "unit": PERCENTAGE,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -134,9 +221,8 @@ SENSOR_CONFIG_MAP = {
         "step": 1.0,
     },
     "R8661": {
-        "name": "Setpoint Umidità Riscaldamento",
-        "transformation": lambda x: x,
-        "reverse_transformation": lambda x: int(x),
+        **scaled(1),
+        "name": "Setpoint Umidita Riscaldamento",
         "device_class": SensorDeviceClass.HUMIDITY,
         "unit": PERCENTAGE,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -145,186 +231,143 @@ SENSOR_CONFIG_MAP = {
         "step": 1.0,
     },
     # Time Riscaldamento
-    "R8691": {
-        "name": "Orario Attenuazione Riscaldamento",
-        "transformation": lambda total_minutes: time(hour=total_minutes // 60, minute=total_minutes % 60),
-        "reverse_transformation": lambda time_obj: time_obj.hour * 60 + time_obj.minute,
-    },
-    "R8689": {
-        "name": "Orario Confort Riscaldamento",
-        "transformation": lambda total_minutes: time(hour=total_minutes // 60, minute=total_minutes % 60),
-        "reverse_transformation": lambda time_obj: time_obj.hour * 60 + time_obj.minute,
-    },
+    "R8691": {**TIME_TRANSFORM, "name": "Orario Attenuazione Riscaldamento"},
+    "R8689": {**TIME_TRANSFORM, "name": "Orario Confort Riscaldamento"},
     # Time Raffrescamento
-    "R8687": {
-        "name": "Orario Attenuazione Raffrescamento",
-        "transformation": lambda total_minutes: time(hour=total_minutes // 60, minute=total_minutes % 60),
-        "reverse_transformation": lambda time_obj: time_obj.hour * 60 + time_obj.minute,
-    },
-    "R8685": {
-        "name": "Orario Confort Raffrescamento",
-        "transformation": lambda total_minutes: time(hour=total_minutes // 60, minute=total_minutes % 60),
-        "reverse_transformation": lambda time_obj: time_obj.hour * 60 + time_obj.minute,
-    },
+    "R8687": {**TIME_TRANSFORM, "name": "Orario Attenuazione Raffrescamento"},
+    "R8685": {**TIME_TRANSFORM, "name": "Orario Confort Raffrescamento"},
     # Time ACS
-    "R16493": {
-        "name": "Orario Richiesta 1 ACS",
-        "transformation": lambda total_minutes: time(hour=total_minutes // 60, minute=total_minutes % 60),
-        "reverse_transformation": lambda time_obj: time_obj.hour * 60 + time_obj.minute,
-    },
-    "R16495": {
-        "name": "Orario Richiesta 2 ACS",
-        "transformation": lambda total_minutes: time(hour=total_minutes // 60, minute=total_minutes % 60),
-        "reverse_transformation": lambda time_obj: time_obj.hour * 60 + time_obj.minute,
-    },
+    "R16493": {**TIME_TRANSFORM, "name": "Orario Richiesta 1 ACS"},
+    "R16495": {**TIME_TRANSFORM, "name": "Orario Richiesta 2 ACS"},
     # Switch
-    "R8676": {
-        "name": "Presenza",
-        "transformation": lambda x: x == 1,
-        "reverse_transformation": lambda state: 1 if state else 0,
-    },
-    "R16384": {
-        "name": "PDC On/Off",
-        "transformation": lambda x: x == 1,
-        "reverse_transformation": lambda state: 1 if state else 0,
-    },
-    "R8692": {
-        "name": "Boost",
-        "transformation": lambda x: x == 1,
-        "reverse_transformation": lambda state: 1 if state else 0,
-    },
-    "R8683": {
-        "name": "Freddo\\Caldo",
-        "transformation": lambda x: x == 1,
-        "reverse_transformation": lambda state: 1 if state else 0,
-    },
+    "R8676": {**BOOL_TRANSFORM, "name": "Presenza"},
+    "R16384": {**BOOL_TRANSFORM, "name": "PDC On/Off"},
+    "R8692": {**BOOL_TRANSFORM, "name": "Boost"},
+    "R8683": {**BOOL_TRANSFORM, "name": "Freddo/Caldo"},
     # Binary Sensor
-    "R9073": {
-        "name": "Eco Hot Water",
-        "transformation": lambda x: x == 1,
-    },
+    "R9073": {**BOOL_TRANSFORM, "name": "Eco Hot Water"},
     # Sensori Sola Lettura
     "R8680": {
+        **scaled(10),
         "name": "Punto di Rugiada",
-        "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8707": {
+        **scaled(10),
         "name": "Temperatura Attuale",
-        "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8704": {
-        "name": "Umidità Attuale",
-        "transformation": lambda x: x,
+        **scaled(1),
+        "name": "Umidita Attuale",
         "device_class": SensorDeviceClass.HUMIDITY,
         "unit": PERCENTAGE,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R9123": {
+        **scaled(100),
         "name": "Potenza Termica",
-        "transformation": lambda x: x / 100.0,
         "device_class": SensorDeviceClass.POWER,
         "unit": UnitOfPower.KILO_WATT,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R9120": {
+        **scaled(1),
         "name": "Portata",
-        "transformation": lambda x: x,
         "unit": "L/h",
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8987": {
+        **scaled(10),
         "name": "Temperatura Mandata",
-        "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8988": {
+        **scaled(10),
         "name": "Temperatura Ritorno",
-        "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8002": {
+        **scaled(1000),
         "name": "Assorbimento PDC",
-        "transformation": lambda x: x / 1000.0,
         "device_class": SensorDeviceClass.POWER,
         "unit": UnitOfPower.KILO_WATT,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8005": {
+        **scaled(1000),
         "name": "Assorbimento ACS",
-        "transformation": lambda x: x / 1000.0,
         "device_class": SensorDeviceClass.POWER,
         "unit": UnitOfPower.KILO_WATT,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8110": {
+        **scaled(1000),
         "name": "Prelievo da Rete",
-        "transformation": lambda x: x / 1000.0,
         "device_class": SensorDeviceClass.POWER,
         "unit": UnitOfPower.KILO_WATT,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8105": {
+        **scaled(1000),
         "name": "Produzione Solare",
-        "transformation": lambda x: x / 1000.0,
         "device_class": SensorDeviceClass.POWER,
         "unit": UnitOfPower.KILO_WATT,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8100": {
+        **scaled(1000),
         "name": "Consumo Casa",
-        "transformation": lambda x: x / 1000.0,
         "device_class": SensorDeviceClass.POWER,
         "unit": UnitOfPower.KILO_WATT,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R9052": {
+        **scaled(10),
         "name": "Temperatura Attuale Acqua PDC",
-        "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R9051": {
+        **scaled(10),
         "name": "Temperatura Target Acqua PDC",
-        "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R9042": {
+        **scaled(10),
         "name": "Temperatura Minima Radiante Acqua PDC",
-        "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8986": {
+        **scaled(10),
         "name": "Temperatura Esterna",
-        "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R8989": {
+        **scaled(10),
         "name": "Temperatura Acqua Calda",
-        "transformation": lambda x: x / 10.0,
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
     "R9008": {
+        **scaled(1),
         "name": "Potenza Compressore",
-        "transformation": lambda x: x,
         "state_class": SensorStateClass.MEASUREMENT,
     },
 }

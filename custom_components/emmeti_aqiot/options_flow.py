@@ -1,42 +1,87 @@
 """Options flow per Emmeti AQ-IoT."""
-import voluptuous as vol
+from __future__ import annotations
 
+import logging
+
+import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import DOMAIN, CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL
+from .const import (
+    CONF_GROUPS,
+    CONF_POLLING_INTERVAL,
+    DEFAULT_POLLING_INTERVAL,
+    MAX_POLLING_INTERVAL,
+    MIN_POLLING_INTERVAL,
+)
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def parse_groups(raw: str) -> list[str]:
+    """Converte il testo inserito dall'utente in una lista di gruppi."""
+    return [g.strip() for g in raw.replace("\n", ",").split(",") if g.strip()]
+
 
 class EmmetiOptionsFlowHandler(config_entries.OptionsFlow):
-    """Gestisce il flusso delle opzioni per l'integrazione."""
+    """Gestisce il flusso delle opzioni.
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Inizializza il gestore del flusso delle opzioni."""
-        self.config_entry = config_entry
+    Nessun __init__: dal 2024.11 assegnare self.config_entry e' deprecato,
+    la entry e' gia' fornita dalla classe base.
+    """
+
+    def _current_groups(self) -> list[str]:
+        return self.config_entry.options.get(
+            CONF_GROUPS, self.config_entry.data.get(CONF_GROUPS, [])
+        )
+
+    def _current_interval(self) -> int:
+        return self.config_entry.options.get(
+            CONF_POLLING_INTERVAL,
+            self.config_entry.data.get(CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL),
+        )
 
     async def async_step_init(self, user_input=None):
-        """Gestisce il passo iniziale del flusso delle opzioni."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+        """Intervallo di polling e gestione dei gruppi."""
+        errors: dict[str, str] = {}
+        groups = self._current_groups()
+        interval = self._current_interval()
 
-        options_schema = vol.Schema(
+        if user_input is not None:
+            interval = int(user_input[CONF_POLLING_INTERVAL])
+            groups = parse_groups(user_input.get(CONF_GROUPS, ""))
+
+            if not groups:
+                errors["base"] = "no_groups_found"
+
+            if not errors:
+                return self.async_create_entry(
+                    title="",
+                    data={
+                        CONF_POLLING_INTERVAL: interval,
+                        CONF_GROUPS: groups,
+                    },
+                )
+
+        schema = vol.Schema(
             {
-                vol.Optional(
-                    CONF_POLLING_INTERVAL,
-                    default=self.config_entry.options.get(
-                        CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL
-                    ),
+                vol.Required(
+                    CONF_POLLING_INTERVAL, default=interval
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=10,
-                        max=300,
+                        min=MIN_POLLING_INTERVAL,
+                        max=MAX_POLLING_INTERVAL,
                         step=1,
                         mode=selector.NumberSelectorMode.SLIDER,
+                        unit_of_measurement="s",
                     )
+                ),
+                vol.Optional(
+                    CONF_GROUPS, default="\n".join(groups)
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(multiline=True)
                 ),
             }
         )
 
-        return self.async_show_form(
-            step_id="init", data_schema=options_schema
-        )
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
