@@ -1,0 +1,49 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Emmeti AQ-IoT",
+        "description": "Inserisci le credenziali che usi sulla web app Emmeti AQ-IoT.",
+        "data": {
+          "username": "Nome utente",
+          "password": "Password",
+          "polling_interval": "Intervallo di aggiornamento (secondi)"
+        }
+      },
+      "groups": {
+        "title": "Gruppi",
+        "description": "Codici gruppo, uno per riga. L'API Emmeti non ha un endpoint per elencarli: apri la webapp Emmeti con l'analisi di rete del browser (F12) e leggili dalle richieste realtime-data. Hanno la forma FB-AMB-DT@Dxxxxx@Txxxxx.",
+        "data": {
+          "groups": "Codici gruppo"
+        }
+      }
+    },
+    "error": {
+      "auth_failed": "Credenziali non valide.",
+      "cannot_connect": "Impossibile raggiungere il server Emmeti.",
+      "no_groups_found": "Nessun codice gruppo valido inserito.",
+      "unknown_error": "Errore imprevisto, controlla i log."
+    },
+    "abort": {
+      "already_configured": "Questo account è già configurato."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni Emmeti AQ-IoT",
+        "data": {
+          "polling_interval": "Intervallo di aggiornamento (secondi)",
+          "groups": "Codici gruppo"
+        },
+        "data_description": {
+          "polling_interval": "La web app è lenta: i valori possono impiegare fino al doppio di questo intervallo per aggiornarsi.",
+          "groups": "Uno per riga. Aggiungi qui un gruppo per crearne le entità, rimuovilo per smettere di leggerlo."
+        }
+      }
+    },
+    "error": {
+      "no_groups_found": "Inserisci almeno un codice gruppo."
+    }
+  }
+}

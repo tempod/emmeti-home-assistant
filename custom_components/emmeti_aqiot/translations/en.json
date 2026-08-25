@@ -1,0 +1,49 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Emmeti AQ-IoT",
+        "description": "Enter the credentials you use on the Emmeti AQ-IoT web app.",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "polling_interval": "Polling interval (seconds)"
+        }
+      },
+      "groups": {
+        "title": "Groups",
+        "description": "Group codes, one per line. The Emmeti API has no endpoint to list them: open the Emmeti web app with the browser network inspector (F12) and read them from the realtime-data requests. They look like FB-AMB-DT@Dxxxxx@Txxxxx.",
+        "data": {
+          "groups": "Group codes"
+        }
+      }
+    },
+    "error": {
+      "auth_failed": "Invalid credentials.",
+      "cannot_connect": "Cannot reach the Emmeti server.",
+      "no_groups_found": "No valid group code entered.",
+      "unknown_error": "Unexpected error, check the logs."
+    },
+    "abort": {
+      "already_configured": "This account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Emmeti AQ-IoT options",
+        "data": {
+          "polling_interval": "Polling interval (seconds)",
+          "groups": "Group codes"
+        },
+        "data_description": {
+          "polling_interval": "The web app is slow: values may take up to twice this interval to refresh.",
+          "groups": "One per line. Add a group here to create its entities, remove one to stop polling it."
+        }
+      }
+    },
+    "error": {
+      "no_groups_found": "Enter at least one group code."
+    }
+  }
+}
