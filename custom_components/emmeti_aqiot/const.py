@@ -254,7 +254,11 @@ SENSOR_CONFIG_MAP: dict[str, dict[str, Any]] = {
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
-    "R8707": {
+    # R8703, non R8707: quest'ultimo non e' mai stato restituito dal server.
+    # Verificato per via psicrometrica: il punto di rugiada calcolato da
+    # R8703 (27,6 C) e R8704 (68%) vale 21,16 C, contro i 21,1 C letti in
+    # R8680. Coerenza a 0,06 C.
+    "R8703": {
         **scaled(10),
         "name": "Temperatura Attuale",
         "device_class": SensorDeviceClass.TEMPERATURE,
