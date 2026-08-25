@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="39.0" y1="0" x2="217.0" y2="0">
+    <stop offset="0" stop-color="#FDA733"/><stop offset="1" stop-color="#00BEC5"/></linearGradient></defs>
+  <g transform="translate(39.0,8.5) scale(0.6953)">
+    <path fill="url(#g)" fill-rule="evenodd" d="M 128 36 L 256 98 L 256 221 L 0 221 L 0 98 Z M 128 85 L 215 127 L 215 221 L 41 221 L 41 127 Z"/>
+    <path fill="url(#g)" d="M 128 128 L 171 148 L 171 221 L 128 221 Z"/>
+  </g>
+  <text x="128" y="222.5" text-anchor="middle" font-family="Roboto" font-weight="700"
+        font-size="65.1" fill="#ECEFF1">AQ-IoT</text>
+</svg>
