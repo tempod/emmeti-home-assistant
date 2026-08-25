@@ -1,10 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 266" width="256" height="266">
-  <defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="256" y2="0">
-    <stop offset="0" stop-color="#FDA733"/><stop offset="1" stop-color="#00BEC5"/></linearGradient></defs>
-  <g transform="translate(0,-36)">
-    <path fill="url(#g)" fill-rule="evenodd" d="M 128 36 L 256 98 L 256 221 L 0 221 L 0 98 Z M 128 85 L 215 127 L 215 221 L 41 221 L 41 127 Z"/>
-    <path fill="url(#g)" d="M 128 128 L 171 148 L 171 221 L 128 221 Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 168" width="512" height="168">
+  <g transform="translate(0,4) scale(0.625)">
+    <rect x="0" y="0" width="256" height="256" rx="56" ry="56" fill="#1565C0"/>
+    <rect x="44" y="38" width="168" height="90" rx="14" fill="#FFFFFF"/>
+    <g fill="#1565C0">
+      <rect x="44" y="63" width="168" height="8"/>
+      <rect x="44" y="95" width="168" height="8"/>
+    </g>
+    <g fill="#FFFFFF">
+      <rect x="48" y="152" width="68" height="68" rx="22"/>
+      <rect x="140" y="152" width="68" height="68" rx="22"/>
+    </g>
+    <g fill="none" stroke="#1565C0" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 68 193 L 82 179 L 96 193"/>
+      <path d="M 160 179 L 174 193 L 188 179"/>
+    </g>
   </g>
-  <text x="128" y="261.7" text-anchor="middle" font-family="Roboto" font-weight="700"
-        font-size="71.3" fill="#37474F">AQ-IoT</text>
+  <g font-family="Roboto" font-weight="700" fill="#1565C0">
+    <text x="190" y="72" font-size="46">Dual Switch</text>
+    <text x="190" y="126" font-size="46">Cover</text>
+  </g>
 </svg>
