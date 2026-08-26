@@ -5,7 +5,16 @@ from datetime import time
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.const import PERCENTAGE, Platform, UnitOfPower, UnitOfTemperature
+from homeassistant.const import (
+    DEGREE,
+    PERCENTAGE,
+    Platform,
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfTemperature,
+)
 
 DOMAIN = "emmeti_aqiot"
 
@@ -21,6 +30,11 @@ PLATFORMS: list[Platform] = [
 CONF_INSTALLATION_ID = "installation_id"
 CONF_GROUPS = "groups"
 CONF_POLLING_INTERVAL = "polling_interval"
+CONF_SHOW_UNMAPPED = "show_unmapped"
+# Spento di default: i registri non identificati sono un centinaio e
+# scriverebbero uno stato a ogni ciclo senza dare nulla in cambio. Chi vuole
+# contribuire alla mappatura lo accende dalle opzioni.
+DEFAULT_SHOW_UNMAPPED = False
 DEFAULT_POLLING_INTERVAL = 30
 MIN_POLLING_INTERVAL = 10
 MAX_POLLING_INTERVAL = 300
@@ -98,6 +112,50 @@ def friendly_group_name(group_code: str) -> str:
             suffix = base[len(prefix) :].strip("-")
             return f"Emmeti {label} {suffix}".strip() if suffix else f"Emmeti {label}"
     return f"Emmeti {base}"
+
+
+# --------------------------------------------------------------------------
+# Contatori di energia su due registri a 16 bit
+#
+# L'energia e' memorizzata a 32 bit su due registri:
+#   valore = parola_alta * 65536 + parola_bassa,  unita 0,01 kWh
+# La parola bassa cambia di continuo, quella alta avanza solo ogni 655,36 kWh
+# (per questo nei log sembrava ferma). Presi singolarmente sarebbero
+# inutilizzabili.
+#
+# Verificato su due scale indipendenti. Totali storici:
+#   R8101|R8102 = 68533  -> 685,33 kWh  contro 681,49 dichiarati (+0,6%)
+#   R8106|R8107 = 554871 -> 5548,71 kWh contro 5475,78 dichiarati (+1,3%)
+# Valori di giornata, dove lo scarto sistematico sparisce:
+#   R8107 +99 unita in 5h06m = 0,99 kWh, con 2,05 kWh sull'intera giornata
+#   R8102 +2 unita           = 0,02 kWh, con 0,03 kWh sull'intera giornata
+#
+# La chiave del dizionario e' la parola bassa.
+# --------------------------------------------------------------------------
+COMPOSITE_SENSORS: dict[str, dict[str, Any]] = {
+    "R8102": {
+        "high": "R8101",
+        **scaled(100),
+        "name": "Energia Prodotta/Immessa",
+        "device_class": SensorDeviceClass.ENERGY,
+        "unit": UnitOfEnergy.KILO_WATT_HOUR,
+        "state_class": SensorStateClass.TOTAL_INCREASING,
+    },
+    "R8107": {
+        "high": "R8106",
+        **scaled(100),
+        "name": "Energia Prelevata dalla Rete",
+        "device_class": SensorDeviceClass.ENERGY,
+        "unit": UnitOfEnergy.KILO_WATT_HOUR,
+        "state_class": SensorStateClass.TOTAL_INCREASING,
+    },
+}
+
+# Registri assorbiti dai contatori compositi: da soli non significano nulla,
+# quindi non devono generare entita' proprie.
+COMPOSITE_REGISTERS: set[str] = {
+    code for low, cfg in COMPOSITE_SENSORS.items() for code in (low, cfg["high"])
+}
 
 
 # --------------------------------------------------------------------------
@@ -299,6 +357,11 @@ SENSOR_CONFIG_MAP: dict[str, dict[str, Any]] = {
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
+    # Confermati per integrazione sulla giornata: R8005 da' 0,766 kWh contro
+    # i 0,76 della webapp (scarto 0,8%). Sono POTENZE, non energie: per
+    # ottenere i kWh giornalieri serve un integrale di Riemann in HA.
+    # Sono i primi due dei quattro ingressi a impulsi del modulo FEBOS-Energy
+    # (R8002, R8005, R8008, R8011); gli altri due sono a zero.
     "R8002": {
         **scaled(1000),
         "name": "Assorbimento PDC",
@@ -309,27 +372,6 @@ SENSOR_CONFIG_MAP: dict[str, dict[str, Any]] = {
     "R8005": {
         **scaled(1000),
         "name": "Assorbimento ACS",
-        "device_class": SensorDeviceClass.POWER,
-        "unit": UnitOfPower.KILO_WATT,
-        "state_class": SensorStateClass.MEASUREMENT,
-    },
-    "R8110": {
-        **scaled(1000),
-        "name": "Prelievo da Rete",
-        "device_class": SensorDeviceClass.POWER,
-        "unit": UnitOfPower.KILO_WATT,
-        "state_class": SensorStateClass.MEASUREMENT,
-    },
-    "R8105": {
-        **scaled(1000),
-        "name": "Produzione Solare",
-        "device_class": SensorDeviceClass.POWER,
-        "unit": UnitOfPower.KILO_WATT,
-        "state_class": SensorStateClass.MEASUREMENT,
-    },
-    "R8100": {
-        **scaled(1000),
-        "name": "Consumo Casa",
         "device_class": SensorDeviceClass.POWER,
         "unit": UnitOfPower.KILO_WATT,
         "state_class": SensorStateClass.MEASUREMENT,
@@ -369,9 +411,65 @@ SENSOR_CONFIG_MAP: dict[str, dict[str, Any]] = {
         "unit": UnitOfTemperature.CELSIUS,
         "state_class": SensorStateClass.MEASUREMENT,
     },
+    # Tensione di rete, in decivolt. Era mappato come "Consumo Casa" in kW.
+    # Su 1743 letture in una giornata resta fra 210,8 e 236,4 V con media
+    # 225,6 e deviazione standard 3,7 V: e' l'andamento di una tensione di
+    # rete, non di un consumo domestico, che varierebbe di ordini di grandezza.
+    "R8100": {
+        **scaled(10),
+        "name": "Tensione di Rete",
+        "device_class": SensorDeviceClass.VOLTAGE,
+        "unit": UnitOfElectricPotential.VOLT,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    # Potenza del canale configurabile (fotovoltaico oppure, come nella mia
+    # installazione, la ricarica dell'auto). Integrata sulla giornata da
+    # 0,04 kWh contro i 0,05 dichiarati dalla webapp.
+    "R8105": {
+        **scaled(1000),
+        "name": "Produzione Solare",
+        "device_class": SensorDeviceClass.POWER,
+        "unit": UnitOfPower.KILO_WATT,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    # Potenza prelevata dalla rete, in watt. Verificata per integrazione:
+    # 4,93 kWh sulla giornata contro i 4,80 della webapp (+2,7%).
+    "R8110": {
+        **scaled(1000),
+        "name": "Prelievo da Rete",
+        "device_class": SensorDeviceClass.POWER,
+        "unit": UnitOfPower.KILO_WATT,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
     "R9008": {
         **scaled(1),
         "name": "Potenza Compressore",
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    # Corrente assorbita, in milliampere. Nello stesso test del forno passa
+    # da 1603 (1,60 A) a 16112 (16,11 A). Il rapporto con la potenza di
+    # R9127 da' un fattore di potenza di 0,54 a riposo e 0,96 con il forno
+    # acceso: coerente con un carico reattivo che lascia il posto a una
+    # resistenza pura.
+    # Angolo di sfasamento fra tensione e corrente, in gradi.
+    # Tre riscontri indipendenti: il valore non supera mai 359 su oltre 11.000
+    # campioni; il suo coseno correla a +0,938 con P/(V*I) calcolato da R8110,
+    # R8100 e R8112; e rispetta la disuguaglianza fisica cos(fi) >= fattore di
+    # potenza reale nel 97,8% dei casi, con lo scarto sempre nella direzione
+    # giusta (la differenza sono le armoniche).
+    # Con un forno acceso, cioe' un carico resistivo puro, passa da 337 a 351
+    # gradi: cos 0,987 contro un fattore di potenza misurato di 0,991.
+    "R8114": {
+        **scaled(1),
+        "name": "Angolo di Sfasamento",
+        "unit": DEGREE,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "R8112": {
+        **scaled(1000),
+        "name": "Corrente Assorbita",
+        "device_class": SensorDeviceClass.CURRENT,
+        "unit": UnitOfElectricCurrent.AMPERE,
         "state_class": SensorStateClass.MEASUREMENT,
     },
 }

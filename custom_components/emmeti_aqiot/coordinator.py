@@ -26,6 +26,7 @@ class EmmetiCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         installation_id: str,
         groups: list[str],
         polling_interval: int,
+        show_unmapped: bool = False,
     ) -> None:
         super().__init__(
             hass,
@@ -37,6 +38,7 @@ class EmmetiCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.client = client
         self.installation_id = installation_id
         self.groups = groups
+        self.show_unmapped = show_unmapped
         self._previous: dict[tuple[str, str], int] = {}
         # Indice groupCode -> gruppo, ricostruito a ogni ciclo. Con oltre
         # centocinquanta entita' che leggono a ogni aggiornamento, la

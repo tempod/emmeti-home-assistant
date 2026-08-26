@@ -1,13 +1,17 @@
 {
   "domain": "emmeti_aqiot",
   "name": "Emmeti AQ-IoT",
-  "codeowners": ["@tempod"],
+  "codeowners": [
+    "@tempod"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/tempod/emmeti-home-assistant",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/tempod/emmeti-home-assistant/issues",
-  "loggers": ["custom_components.emmeti_aqiot"],
+  "loggers": [
+    "custom_components.emmeti_aqiot"
+  ],
   "requirements": [],
-  "version": "1.1.0"
+  "version": "1.2.0"
 }

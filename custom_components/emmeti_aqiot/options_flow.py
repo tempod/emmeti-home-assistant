@@ -10,7 +10,9 @@ from homeassistant.helpers import selector
 from .const import (
     CONF_GROUPS,
     CONF_POLLING_INTERVAL,
+    CONF_SHOW_UNMAPPED,
     DEFAULT_POLLING_INTERVAL,
+    DEFAULT_SHOW_UNMAPPED,
     MAX_POLLING_INTERVAL,
     MIN_POLLING_INTERVAL,
 )
@@ -46,10 +48,14 @@ class EmmetiOptionsFlowHandler(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
         groups = self._current_groups()
         interval = self._current_interval()
+        show_unmapped = self.config_entry.options.get(
+            CONF_SHOW_UNMAPPED, DEFAULT_SHOW_UNMAPPED
+        )
 
         if user_input is not None:
             interval = int(user_input[CONF_POLLING_INTERVAL])
             groups = parse_groups(user_input.get(CONF_GROUPS, ""))
+            show_unmapped = bool(user_input.get(CONF_SHOW_UNMAPPED, False))
 
             if not groups:
                 errors["base"] = "no_groups_found"
@@ -60,6 +66,7 @@ class EmmetiOptionsFlowHandler(config_entries.OptionsFlow):
                     data={
                         CONF_POLLING_INTERVAL: interval,
                         CONF_GROUPS: groups,
+                        CONF_SHOW_UNMAPPED: show_unmapped,
                     },
                 )
 
@@ -81,6 +88,9 @@ class EmmetiOptionsFlowHandler(config_entries.OptionsFlow):
                 ): selector.TextSelector(
                     selector.TextSelectorConfig(multiline=True)
                 ),
+                vol.Optional(
+                    CONF_SHOW_UNMAPPED, default=show_unmapped
+                ): selector.BooleanSelector(),
             }
         )
 

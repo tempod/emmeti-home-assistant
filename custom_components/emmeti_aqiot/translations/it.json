@@ -34,11 +34,13 @@
         "title": "Opzioni Emmeti AQ-IoT",
         "data": {
           "polling_interval": "Intervallo di aggiornamento (secondi)",
-          "groups": "Codici gruppo"
+          "groups": "Codici gruppo",
+          "show_unmapped": "Crea entità per i registri non identificati"
         },
         "data_description": {
           "polling_interval": "La web app è lenta: i valori possono impiegare fino al doppio di questo intervallo per aggiornarsi.",
-          "groups": "Uno per riga. Aggiungi qui un gruppo per crearne le entità, rimuovilo per smettere di leggerlo."
+          "groups": "Uno per riga. Aggiungi qui un gruppo per crearne le entità, rimuovilo per smettere di leggerlo.",
+          "show_unmapped": "Disattivato di default: un centinaio di registri non è ancora identificato e scriverebbe uno stato a ogni ciclo. Attivalo per contribuire alla mappatura; il log di debug e la diagnostica funzionano comunque."
         }
       }
     },

@@ -34,12 +34,15 @@ class EmmetiEntity(CoordinatorEntity[EmmetiCoordinator]):
         group_code: str,
         device_id: Any,
         r_code: str,
+        config: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(coordinator)
         self._group_code = group_code
         self._device_id = device_id
         self._r_code = r_code
-        self._config: dict[str, Any] = SENSOR_CONFIG_MAP.get(r_code, {})
+        self._config: dict[str, Any] = (
+            config if config is not None else SENSOR_CONFIG_MAP.get(r_code, {})
+        )
         self._pending: Any = None
         self._pending_ticks = 0
 
@@ -70,15 +73,19 @@ class EmmetiEntity(CoordinatorEntity[EmmetiCoordinator]):
     def _group_data(self) -> dict[str, Any] | None:
         return self.coordinator.by_group.get(self._group_code)
 
-    @property
-    def _raw_value(self) -> Any:
+    def _raw(self, r_code: str) -> Any:
+        """Valore grezzo di un registro qualsiasi dello stesso gruppo."""
         group = self._group_data
         if not group:
             return None
-        value_obj = (group.get("data") or {}).get(self._r_code)
+        value_obj = (group.get("data") or {}).get(r_code)
         if isinstance(value_obj, dict) and "i" in value_obj:
             return value_obj["i"]
         return None
+
+    @property
+    def _raw_value(self) -> Any:
+        return self._raw(self._r_code)
 
     def _transform(self, raw: Any) -> Any:
         """Applica la trasformazione del registro, se definita."""
@@ -173,3 +180,52 @@ class EmmetiWritableEntity(EmmetiEntity):
             self._set_pending(value)
             await self.coordinator.async_request_refresh()
         return success
+
+
+class EmmetiCompositeEntity(EmmetiEntity):
+    """Entita' il cui valore nasce da due registri a 16 bit.
+
+    I contatori di energia superano i 65535 centesimi di kWh dopo appena
+    655 kWh, quindi il firmware li spezza in parola alta e parola bassa.
+    Prese singolarmente sarebbero inutilizzabili: la bassa torna a zero a
+    ogni superamento e la alta resta ferma per mesi.
+    """
+
+    def __init__(
+        self,
+        coordinator: EmmetiCoordinator,
+        group_code: str,
+        device_id: Any,
+        low_code: str,
+        high_code: str,
+        config: dict[str, Any],
+    ) -> None:
+        super().__init__(coordinator, group_code, device_id, low_code, config)
+        self._high_code = high_code
+        # unique_id distinto da quello che avrebbe il singolo registro basso:
+        # altrimenti riuserebbe l'entita' grezza preesistente, mescolando nello
+        # storico i valori crudi con i kWh.
+        sanitized = group_code.lower().replace("@", "_").replace("-", "_")
+        self._attr_unique_id = (
+            f"emmeti_{device_id}_{sanitized}_{high_code.lower()}_{low_code.lower()}"
+        )
+
+    def _word(self, r_code: str) -> int | None:
+        group = self._group_data
+        if not group:
+            return None
+        value_obj = (group.get("data") or {}).get(r_code)
+        if isinstance(value_obj, dict) and isinstance(value_obj.get("i"), int):
+            return value_obj["i"]
+        return None
+
+    @property
+    def _raw_value(self) -> Any:
+        low, high = self._word(self._r_code), self._word(self._high_code)
+        if low is None or high is None:
+            return None
+        return high * 65536 + low
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._raw_value is not None

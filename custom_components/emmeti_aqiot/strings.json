@@ -34,11 +34,13 @@
         "title": "Emmeti AQ-IoT options",
         "data": {
           "polling_interval": "Polling interval (seconds)",
-          "groups": "Group codes"
+          "groups": "Group codes",
+          "show_unmapped": "Create entities for unidentified registers"
         },
         "data_description": {
           "polling_interval": "The web app is slow: values may take up to twice this interval to refresh.",
-          "groups": "One per line. Add a group here to create its entities, remove one to stop polling it."
+          "groups": "One per line. Add a group here to create its entities, remove one to stop polling it.",
+          "show_unmapped": "Off by default: about a hundred registers are not yet identified and would write a state every polling cycle. Turn it on to help map them; the debug log and the diagnostics download work either way."
         }
       }
     },

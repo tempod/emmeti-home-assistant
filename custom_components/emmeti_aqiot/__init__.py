@@ -13,7 +13,9 @@ from .const import (
     CONF_GROUPS,
     CONF_INSTALLATION_ID,
     CONF_POLLING_INTERVAL,
+    CONF_SHOW_UNMAPPED,
     DEFAULT_POLLING_INTERVAL,
+    DEFAULT_SHOW_UNMAPPED,
     DOMAIN,
     PLATFORMS,
 )
@@ -45,8 +47,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         installation_id=installation_id,
     )
 
+    show_unmapped = entry.options.get(CONF_SHOW_UNMAPPED, DEFAULT_SHOW_UNMAPPED)
+
     coordinator = EmmetiCoordinator(
-        hass, entry, client, installation_id, groups, polling_interval
+        hass, entry, client, installation_id, groups, polling_interval, show_unmapped
     )
     await coordinator.async_config_entry_first_refresh()
 
