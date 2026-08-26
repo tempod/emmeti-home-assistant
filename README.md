@@ -105,6 +105,10 @@ A seconda dei registri presenti in ciascun gruppo vengono create entità su cinq
 | `switch` | Comandi on/off | presenza, boost, on/off pompa di calore, freddo/caldo |
 | `binary_sensor` | Stati on/off in lettura | eco acqua calda |
 
+Alcune grandezze nascono dalla combinazione di due registri: i contatori di energia sono memorizzati a 32 bit su una coppia di registri a 16 bit, che l'integrazione ricompone in un unico sensore. Hanno `state_class` di tipo totale crescente e si possono collegare direttamente alla **dashboard Energia** di Home Assistant.
+
+Oltre a questi, due sensori ricompongono i **contatori di energia a 32 bit** (energia prelevata dalla rete ed energia prodotta/immessa): il valore è spezzato su due registri e va ricomposto, quindi non sarebbe utilizzabile leggendoli singolarmente. Sono dichiarati con `state_class: total_increasing`, quindi si possono collegare direttamente alla **dashboard Energia** di Home Assistant.
+
 Note sul comportamento:
 
 - **Unità e scale automatiche.** Per i registri riconosciuti vengono impostati unità di misura, classe dispositivo e fattore di scala, così i valori compaiono già convertiti e lo storico è utilizzabile nei grafici.
@@ -116,9 +120,13 @@ L'aggiornamento dei valori richiede tempo: dopo una modifica possono servire fin
 
 ## Registri non mappati
 
-**Non tutti i registri sono identificati.** Quelli mappati provengono dalla mia installazione: dovrebbero essere gli stessi per tutti, ma i gruppi cambiano da impianto a impianto e potresti averne di ulteriori.
+**Non tutti i registri sono identificati.** Su una installazione tipica il server ne restituisce oltre centocinquanta, di cui una quarantina riconosciuti. I restanti sono valori grezzi di cui non si conosce ancora il significato.
 
-I registri sconosciuti vengono comunque creati come sensori, con il codice al posto del nome e il valore grezzo non convertito. Sono assegnati alla categoria **Diagnostica**, quindi compaiono in fondo alla pagina del dispositivo senza affollare i sensori principali, ma restano attivi e con storico completo — indispensabile per capire come si comportano nel tempo.
+Di default questi registri **non generano entità**: sarebbero un centinaio di sensori senza nome che scrivono uno stato a ogni ciclo di polling, appesantendo il database senza dare nulla in cambio. Su un impianto con otto gruppi significa oltre trecentomila righe al giorno risparmiate.
+
+Se vuoi contribuire alla mappatura puoi attivarli da **Configura → Crea entità per i registri non identificati**. Compaiono con il codice al posto del nome e il valore non convertito, nella categoria Diagnostica in fondo alla pagina del dispositivo. Spegnendo di nuovo l'opzione le entità vengono rimosse automaticamente dal registro, senza lasciare voci orfane da cancellare a mano.
+
+**L'opzione non serve per identificare i registri.** I due strumenti di lavoro — il log dei valori cambiati e la diagnostica scaricabile — leggono i dati grezzi e funzionano identici anche a opzione spenta.
 
 ### Identificare un registro
 
@@ -137,7 +145,11 @@ DELTA FB-AMB-DT@D13577@T44164 R8688 (Confort Riscaldamento): 2050 -> 2100 (+50)
 DELTA FB-HP-DT1@D13577@T44167 R9034 (NON MAPPATO): 12 -> 13 (+1)
 ```
 
-Il metodo è: modifica un parametro nella webapp Emmeti, poi guarda quale coppia gruppo/registro si è mossa. L'entità del salto rivela anche la scala: spostando un setpoint di 1 °C, `+10` significa decimi di grado, `+100` centesimi.
+Il metodo è: modifica un parametro nella webapp Emmeti, poi guarda quale coppia gruppo/registro si è mossa. L'entità del salto rivela anche la scala — spostando un setpoint di 1 °C, `+10` significa decimi di grado, `+100` centesimi.
+
+Per i registri elettrici funziona bene la prova del carico noto: accendi un forno o un bollitore per qualche minuto e osserva quali registri saltano e di quanto. È così che sono stati identificati la potenza assorbita e la corrente, distinguendole grazie al fattore di potenza che passa da 0,54 a riposo a 0,96 con un carico resistivo.
+
+Un terzo metodo è il confronto con la webapp: la pagina *Analisi energie* impostata su un solo giorno fornisce valori in kWh che si possono confrontare con quanto sono cresciuti i contatori nello stesso intervallo. È così che sono stati riconosciuti i contatori a 32 bit.
 
 ### Segnalare un registro
 
