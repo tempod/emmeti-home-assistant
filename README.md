@@ -1,5 +1,10 @@
 # Emmeti AQ-IoT per Home Assistant
 
+[![Release](https://img.shields.io/github/v/release/tempod/emmeti-home-assistant)](https://github.com/tempod/emmeti-home-assistant/releases)
+[![Validate](https://github.com/tempod/emmeti-home-assistant/actions/workflows/validate.yml/badge.svg)](https://github.com/tempod/emmeti-home-assistant/actions/workflows/validate.yml)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
+[![License](https://img.shields.io/github/license/tempod/emmeti-home-assistant)](LICENSE)
+
 Integrazione **non ufficiale** per gli impianti Emmeti Febos, basata sulla webapp Emmeti AQ-IoT.
 
 Legge periodicamente i dati dell'impianto e crea le entità corrispondenti in Home Assistant: temperature, umidità, potenze, setpoint, fasce orarie e comandi. I parametri modificabili nella webapp lo sono anche da Home Assistant, quindi puoi usarli in automazioni, scene e dashboard.
