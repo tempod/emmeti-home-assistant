@@ -15,10 +15,26 @@ LOGIN_URL = f"{BASE_URL}/api/v1/auth/login"
 DATA_URL_TEMPLATE = f"{BASE_URL}/api/v2/emmeti/{{installation_id}}/realtime-data"
 REALTIME_DATA_URL_TEMPLATE = DATA_URL_TEMPLATE + "?input_group_list={group_list}"
 
-REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=20)
+REQUEST_TIMEOUT_SECONDS = 20
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_SECONDS)
 
 WRITE_RETRIES = 3
 WRITE_RETRY_DELAY = 2
+READ_RETRIES = 2
+READ_RETRY_DELAY = 3
+
+
+def describe_error(err: BaseException) -> str:
+    """Descrizione leggibile di un'eccezione di rete.
+
+    str(asyncio.TimeoutError()) restituisce una stringa vuota, per cui i log
+    mostravano "Errore nel recuperare i dati:" senza alcuna causa.
+    """
+    if isinstance(err, (asyncio.TimeoutError, TimeoutError)):
+        return f"nessuna risposta entro {REQUEST_TIMEOUT_SECONDS}s"
+    text = str(err).strip()
+    name = type(err).__name__
+    return f"{name}: {text}" if text else name
 
 
 class EmmetiApiClientError(Exception):
@@ -114,45 +130,67 @@ class EmmetiApiClient:
             self._token = None
             if err.status in (401, 403):
                 raise EmmetiApiAuthError("Credenziali non valide") from err
-            raise EmmetiApiClientError(f"Autenticazione fallita: {err}") from err
+            raise EmmetiApiClientError(f"Autenticazione fallita: {describe_error(err)}") from err
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             self._token = None
-            raise EmmetiApiClientError(f"Autenticazione fallita: {err}") from err
+            raise EmmetiApiClientError(f"Autenticazione fallita: {describe_error(err)}") from err
 
     async def async_get_realtime_data(
         self, installation_id: str, groups: list[str]
     ) -> list[dict[str, Any]]:
-        """Legge i dati realtime per i gruppi indicati."""
+        """Legge i dati realtime per i gruppi indicati.
+
+        La webapp e' lenta e ogni tanto non risponde entro il timeout: un
+        singolo errore rendeva non disponibili tutte le entita' fino al
+        polling successivo, facendo fallire le automazioni che le usavano.
+        Si riprova qualche volta prima di dichiarare fallito il ciclo.
+        """
         if not self._token:
             await self.async_authenticate()
 
         url = REALTIME_DATA_URL_TEMPLATE.format(
             installation_id=installation_id, group_list=",".join(groups)
         )
-        try:
-            for attempt in (1, 2):
+        last_error = "causa sconosciuta"
+
+        for attempt in range(1, READ_RETRIES + 1):
+            try:
                 async with self._session.get(
                     url, headers=self._headers(), timeout=REQUEST_TIMEOUT
                 ) as response:
-                    if response.status == 401 and attempt == 1:
+                    if response.status == 401:
                         _LOGGER.debug("Token scaduto in lettura, rieseguo il login")
                         self._token = None
                         await self.async_authenticate()
+                        last_error = "token scaduto"
                         continue
                     response.raise_for_status()
                     data = await response.json(content_type=None)
-                    _raise_for_api_error(data, "Lettura dati")
-                    if not isinstance(data, list):
-                        raise EmmetiApiClientError(
-                            f"Risposta in formato inatteso ({type(data).__name__}): "
-                            "controlla i codici gruppo nelle opzioni"
-                        )
-                    return data
-            raise EmmetiApiClientError("Autenticazione rifiutata dopo il rinnovo token")
-        except EmmetiApiClientError:
-            raise
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
-            raise EmmetiApiClientError(f"Errore nel recuperare i dati: {err}") from err
+            except EmmetiApiAuthError:
+                raise
+            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+                last_error = describe_error(err)
+                _LOGGER.debug(
+                    "Lettura dati fallita (tentativo %d/%d): %s",
+                    attempt,
+                    READ_RETRIES,
+                    last_error,
+                )
+                if attempt < READ_RETRIES:
+                    await asyncio.sleep(READ_RETRY_DELAY)
+                continue
+
+            _raise_for_api_error(data, "Lettura dati")
+            if not isinstance(data, list):
+                raise EmmetiApiClientError(
+                    f"Risposta in formato inatteso ({type(data).__name__}): "
+                    "controlla i codici gruppo nelle opzioni"
+                )
+            return data
+
+        raise EmmetiApiClientError(
+            f"Nessun dato dopo {READ_RETRIES} tentativi ({last_error})"
+        )
 
     async def async_set_value(
         self, device_id: int, thing_id: int, r_code: str, value: int

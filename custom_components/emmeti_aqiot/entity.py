@@ -68,10 +68,7 @@ class EmmetiEntity(CoordinatorEntity[EmmetiCoordinator]):
     # ------------------------------------------------------------------
     @property
     def _group_data(self) -> dict[str, Any] | None:
-        for group in self.coordinator.data or []:
-            if group.get("groupCode") == self._group_code:
-                return group
-        return None
+        return self.coordinator.by_group.get(self._group_code)
 
     @property
     def _raw_value(self) -> Any:

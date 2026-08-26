@@ -38,6 +38,10 @@ class EmmetiCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.installation_id = installation_id
         self.groups = groups
         self._previous: dict[tuple[str, str], int] = {}
+        # Indice groupCode -> gruppo, ricostruito a ogni ciclo. Con oltre
+        # centocinquanta entita' che leggono a ogni aggiornamento, la
+        # scansione lineare della lista veniva ripetuta migliaia di volte.
+        self.by_group: dict[str, dict[str, Any]] = {}
 
     async def _async_update_data(self) -> list[dict[str, Any]]:
         try:
@@ -52,6 +56,9 @@ class EmmetiCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         if not data:
             raise UpdateFailed("Il server ha restituito una risposta vuota")
 
+        self.by_group = {
+            g["groupCode"]: g for g in data if isinstance(g, dict) and g.get("groupCode")
+        }
         self._log_deltas(data)
         return data
 
