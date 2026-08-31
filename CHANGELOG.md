@@ -2,6 +2,20 @@
 
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e il progetto usa il [versionamento semantico](https://semver.org/lang/it/).
 
+## [1.3.0] - 2026-08-28
+
+### Aggiunto
+
+- **Deumidificatore** (`R8682`), sensore binario acceso/spento nel gruppo ambiente. Segnalato da un utente nella issue #4. Non è stato possibile verificarlo direttamente. Chi rileva un comportamento diverso è invitato ad aprire una segnalazione allegando una riga di log `DELTA` che mostri il cambiamento.
+
+- **Il codice del registro come attributo dell'entità.** Ogni entità espone `registro` e `gruppo` fra gli attributi di stato, visibili in Strumenti per sviluppatori → Stati. Dalla 1.1.0 l'`entity_id` non contiene più il codice, che restava leggibile solo aprendo il registro entità: ora si risale dall'entità al registro senza uscire dall'interfaccia. Gli attributi sono esclusi dal recorder, essendo costanti. Il README riporta anche la tabella completa della corrispondenza.
+- **Log selettivo per singolo registro.** Ogni riga `DELTA` esce ora su un logger che porta il codice nel nome, quindi si può seguire un registro alla volta con `custom_components.emmeti_aqiot.delta.R8682: debug` invece di accendere il debug dell'intera integrazione. Il logger si aggancia al nome del pacchetto, non del modulo, così il nome da configurare resta stabile anche se il codice cambia file.
+
+### Corretto
+
+- **La `device_class` dichiarata nella mappa veniva ignorata dai sensori binari**: la leggeva solo la piattaforma `sensor`. Ora anche i `binary_sensor` la applicano.
+- **Entità orfane quando un registro cambia piattaforma.** Un registro identificato passa da sensore generico a interruttore, orario o sensore binario, e il vecchio sensore restava nel registro di Home Assistant come non disponibile, da cancellare a mano. Ora viene rimosso in automatico, come già avveniva per i registri disattivati.
+
 ## [1.2.0] - 2026-08-26
 
 Identificate le grandezze elettriche del modulo FEBOS-Energy, corretta la natura di un registro e ricomposti i contatori di energia. I registri non identificati non generano più entità per impostazione predefinita.

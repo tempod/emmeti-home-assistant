@@ -22,6 +22,7 @@ Legge periodicamente i dati dell'impianto e crea le entità corrispondenti in Ho
 - [Modificare gruppi e polling](#modificare-gruppi-e-polling)
 - [Entità create](#entità-create)
 - [Registri non mappati](#registri-non-mappati)
+- [Corrispondenza fra entità e registri](#corrispondenza-fra-entità-e-registri)
 - [Risoluzione dei problemi](#risoluzione-dei-problemi)
 - [Aggiornare da una versione precedente](#aggiornare-da-una-versione-precedente)
 - [Contribuire](#contribuire)
@@ -135,7 +136,40 @@ Se vuoi contribuire alla mappatura puoi attivarli da **Configura → Crea entit�
 
 ### Identificare un registro
 
-Attiva il log di debug in `configuration.yaml`:
+Attiva il log di debug in `configuration.yaml`. Ogni registro ha un proprio logger che ne porta il codice nel nome, e i logger sono gerarchici: puoi quindi scegliere quanto guardare.
+
+**Tutti i registri, e nient'altro** — solo le righe `DELTA`, senza i messaggi di autenticazione, scrittura ed errori:
+
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.emmeti_aqiot.delta: debug
+```
+
+**Un solo registro**, quando ne stai inseguendo uno per ore e non vuoi il rumore degli altri:
+
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.emmeti_aqiot.delta.R8682: debug
+```
+
+Puoi elencarne quanti ne vuoi, uno per riga.
+
+**Tutti tranne i più rumorosi**, accendendo il padre e zittendo i singoli figli. Corrente e sfasamento cambiano a ogni ciclo e da soli producono gran parte delle righe:
+
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.emmeti_aqiot.delta: debug
+    custom_components.emmeti_aqiot.delta.R8112: warning
+    custom_components.emmeti_aqiot.delta.R8113: warning
+```
+
+**Tutta l'integrazione**, cioè i `DELTA` più la diagnostica di funzionamento — tentativi di scrittura, rinnovi del token, letture ritentate. Serve quando indaghi un malfunzionamento, non una mappatura:
 
 ```yaml
 logger:
@@ -159,6 +193,60 @@ Un terzo metodo è il confronto con la webapp: la pagina *Analisi energie* impos
 ### Segnalare un registro
 
 Da **Impostazioni → Dispositivi e servizi → Emmeti AQ-IoT → Scarica diagnostica** ottieni un file JSON con una sezione `registri_non_mappati` già pronta, con credenziali e identificativo impianto oscurati. Allegarlo a una issue è il modo più rapido per farlo aggiungere.
+
+## Corrispondenza fra entità e registri
+
+Fino alla versione 1.0.x l'`entity_id` conteneva il codice del registro. Non è più così: gli identificativi ora derivano dal nome del dispositivo e dell'entità, molto più leggibili ma senza il codice. Il codice resta nell'`unique_id` e, dalla 1.3.0, è esposto anche come **attributo di stato** — lo vedi in Strumenti per sviluppatori → Stati, alle voci `registro` e `gruppo`.
+
+Questa è la corrispondenza completa, utile per leggere il log dei `DELTA`:
+
+| Entità | Registro | Piattaforma |
+|---|---|---|
+| Angolo di Sfasamento | `R8114` | `sensor` |
+| Assorbimento ACS | `R8005` | `sensor` |
+| Assorbimento PDC | `R8002` | `sensor` |
+| Attenuazione Raffrescamento | `R8686` | `number` |
+| Attenuazione Riscaldamento | `R8690` | `number` |
+| Boost | `R8692` | `switch` |
+| Confort Raffrescamento | `R8684` | `number` |
+| Confort Riscaldamento | `R8688` | `number` |
+| Corrente Assorbita | `R8112` | `sensor` |
+| Deumidificatore | `R8682` | `binary_sensor` |
+| Eco Hot Water | `R9073` | `binary_sensor` |
+| Energia Prelevata dalla Rete | `R8106+R8107` | `sensor` |
+| Energia Prodotta/Immessa | `R8101+R8102` | `sensor` |
+| Freddo/Caldo | `R8683` | `switch` |
+| Orario Attenuazione Raffrescamento | `R8687` | `time` |
+| Orario Attenuazione Riscaldamento | `R8691` | `time` |
+| Orario Confort Raffrescamento | `R8685` | `time` |
+| Orario Confort Riscaldamento | `R8689` | `time` |
+| Orario Richiesta 1 ACS | `R16493` | `time` |
+| Orario Richiesta 2 ACS | `R16495` | `time` |
+| PDC On/Off | `R16384` | `switch` |
+| Portata | `R9120` | `sensor` |
+| Potenza Compressore | `R9008` | `sensor` |
+| Potenza Termica | `R9123` | `sensor` |
+| Prelievo da Rete | `R8110` | `sensor` |
+| Presenza | `R8676` | `switch` |
+| Produzione Solare | `R8105` | `sensor` |
+| Punto di Rugiada | `R8680` | `sensor` |
+| Setpoint Umidita Raffrescamento | `R8660` | `number` |
+| Setpoint Umidita Riscaldamento | `R8661` | `number` |
+| Temp Mantenimento ACS | `R16497` | `number` |
+| Temp Richiesta 1 ACS | `R16494` | `number` |
+| Temp Richiesta 2 ACS | `R16496` | `number` |
+| Temperatura Acqua Calda | `R8989` | `sensor` |
+| Temperatura Attuale | `R8703` | `sensor` |
+| Temperatura Attuale Acqua PDC | `R9052` | `sensor` |
+| Temperatura Esterna | `R8986` | `sensor` |
+| Temperatura Mandata | `R8987` | `sensor` |
+| Temperatura Minima Radiante Acqua PDC | `R9042` | `sensor` |
+| Temperatura Ritorno | `R8988` | `sensor` |
+| Temperatura Target Acqua PDC | `R9051` | `sensor` |
+| Tensione di Rete | `R8100` | `sensor` |
+| Umidita Attuale | `R8704` | `sensor` |
+
+I registri non presenti in questa tabella non sono ancora identificati: se attivi la relativa opzione compaiono come sensori diagnostici con il codice al posto del nome.
 
 ## Risoluzione dei problemi
 
