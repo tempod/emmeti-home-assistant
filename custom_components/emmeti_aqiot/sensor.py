@@ -43,6 +43,13 @@ async def async_setup_entry(
             # I registri che compongono un contatore a 32 bit non generano
             # entita' proprie: da soli non significano nulla.
             if r_code in SPECIAL_ENTITIES or r_code in COMPOSITE_REGISTERS:
+                # Un registro puo' passare da 'sensor' a un'altra piattaforma
+                # quando viene identificato (o venire assorbito da un contatore
+                # composito). L'eventuale entita' sensor creata in passato va
+                # tolta dal registro, altrimenti resta orfana e non disponibile.
+                scartati.append(
+                    EmmetiSensor.build_unique_id(device_id, group_code, r_code)
+                )
                 continue
             if r_code not in SENSOR_CONFIG_MAP and not coordinator.show_unmapped:
                 # Registri non ancora identificati: senza l'opzione attiva non

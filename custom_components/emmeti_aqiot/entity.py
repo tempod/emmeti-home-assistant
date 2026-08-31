@@ -27,6 +27,9 @@ class EmmetiEntity(CoordinatorEntity[EmmetiCoordinator]):
     """
 
     _attr_has_entity_name = True
+    # Attributi statici: escluderli dal recorder evita di riscrivere lo stesso
+    # codice registro nel database a ogni aggiornamento di stato.
+    _unrecorded_attributes = frozenset({"registro", "gruppo"})
 
     def __init__(
         self,
@@ -113,6 +116,17 @@ class EmmetiEntity(CoordinatorEntity[EmmetiCoordinator]):
     @property
     def _coordinator_value(self) -> Any:
         return self._transform(self._raw_value)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Espone il registro di provenienza.
+
+        L'entity_id non contiene piu' il codice, che resta solo nell'unique_id
+        e non e' visibile dall'interfaccia. Averlo fra gli attributi permette di
+        risalire dall'entita' al registro senza aprire file di configurazione,
+        cosa utile leggendo il log dei DELTA.
+        """
+        return {"registro": self._r_code, "gruppo": self._group_code}
 
     @property
     def available(self) -> bool:
@@ -209,6 +223,14 @@ class EmmetiCompositeEntity(EmmetiEntity):
         self._attr_unique_id = (
             f"emmeti_{device_id}_{sanitized}_{high_code.lower()}_{low_code.lower()}"
         )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Per i contatori a 32 bit il registro e' una coppia."""
+        return {
+            "registro": f"{self._high_code}+{self._r_code}",
+            "gruppo": self._group_code,
+        }
 
     def _word(self, r_code: str) -> int | None:
         group = self._group_data

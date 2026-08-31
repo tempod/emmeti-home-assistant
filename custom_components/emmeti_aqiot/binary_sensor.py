@@ -37,6 +37,12 @@ async def async_setup_entry(
 class EmmetiBinarySensor(EmmetiEntity, BinarySensorEntity):
     """Rappresenta un'entita' binary_sensor Emmeti."""
 
+    def __init__(self, coordinator, group_code, device_id, r_code) -> None:
+        super().__init__(coordinator, group_code, device_id, r_code)
+        # Prima la device_class dichiarata nella mappa veniva ignorata dai
+        # binary_sensor: la leggeva solo la piattaforma sensor.
+        self._attr_device_class = self._config.get("device_class")
+
     @property
     def is_on(self) -> bool | None:
         return self._current_value

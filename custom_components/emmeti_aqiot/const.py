@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import time
 from typing import Any
 
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import (
     DEGREE,
@@ -181,6 +182,7 @@ SPECIAL_ENTITIES = {
     "R16493": "time",
     "R16495": "time",
     "R9073": "binary_sensor",
+    "R8682": "binary_sensor",
     "R8683": "switch",
 }
 
@@ -304,6 +306,18 @@ SENSOR_CONFIG_MAP: dict[str, dict[str, Any]] = {
     "R8683": {**BOOL_TRANSFORM, "name": "Freddo/Caldo"},
     # Binary Sensor
     "R9073": {**BOOL_TRANSFORM, "name": "Eco Hot Water"},
+    # Stato del deumidificatore: 0 = spento, 1 = acceso. Segnalato da un utente
+    # (issue #4 del repository).
+    # Non verificato sui dati in nostro possesso: nelle due diagnostiche
+    # disponibili vale 0 in entrambe, quindi non abbiamo mai osservato la
+    # transizione. Se emergessero segnalazioni contrarie, il riscontro da
+    # cercare e' una riga DELTA con R8682 che passa da 0 a 1 mentre la
+    # deumidificazione e' attiva.
+    "R8682": {
+        **BOOL_TRANSFORM,
+        "name": "Deumidificatore",
+        "device_class": BinarySensorDeviceClass.RUNNING,
+    },
     # Sensori Sola Lettura
     "R8680": {
         **scaled(10),
